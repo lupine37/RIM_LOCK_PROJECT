@@ -5,6 +5,7 @@
 #define SS_PIN 10
 #define RST_PIN 9
 #define RELAY0 7
+#define BUZZER 8
 int greenLedPin = 5;
 int redLedPin = 6;
 MFRC522 mfrc522(SS_PIN, RST_PIN);
@@ -49,7 +50,7 @@ void rfidData() {
         d = String(data[3], HEX);
         dataAppend = String(a) + String(c) + String(c) + String(d);
         writeString(" "+dataAppend);
-        initialTime = millis();
+        recvState = true;
         delay(500);
 }
 
@@ -62,6 +63,7 @@ void setup() {
         pinMode(RELAY0, OUTPUT);
         pinMode(greenLedPin, OUTPUT);
         pinMode(redLedPin, OUTPUT);
+        pinMode(BUZZER, OUTPUT);
         Serial.write(" <Arduino is ready>");
         lcd.clear();
         lcd.setCursor(0, 0);
@@ -78,9 +80,10 @@ void setup() {
 }
 
 void loop() {
-        // put your main code here, to run repeatedly:       
+        // put your main code here, to run repeatedly:  
+  initialTime = millis();     
   rfidData();
-  while (Serial.available() > 0) {  
+  while (Serial.available() > 0 ) {  
     recvWithStartEndMarker();
     dataResponse();
     if (recvString == "GRANTED") {
@@ -103,8 +106,10 @@ void loop() {
       lcd.print("ACCESS DENIED  ");
       for (int j = 0; j < 5; j++) {
         digitalWrite(redLedPin, HIGH);
+        digitalWrite(BUZZER, HIGH);
         delay(500);
         digitalWrite(redLedPin, LOW);
+        digitalWrite(BUZZER, LOW);
         delay(500);
         }
       }
@@ -127,7 +132,7 @@ void recvWithStartEndMarker() {
     char endMarker = '>';
     char rc;
    
-    while (Serial.available() > 0 && newData == false) {
+    while (Serial.available() > 0) {
         rc = Serial.read();
 
         if (recvInProgress == true) { 
