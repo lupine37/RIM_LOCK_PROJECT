@@ -1,6 +1,8 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <LiquidCrystal_I2C.h>
+#include <Adafruit_Fingerprint.h>
+#include <SoftwareSerial.h>
 
 #define SS_PIN 10
 #define RST_PIN 9
@@ -10,6 +12,8 @@ int greenLedPin = 5;
 int redLedPin = 6;
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+SoftwareSerial mySerial(2, 3);
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 
 byte* data;
 String a = "";
@@ -34,97 +38,6 @@ void writeString(String stringData) {
                 Serial.write(stringData[i]);
         }
 }
-
-
-void rfidData() {
-  if (!mfrc522.PICC_IsNewCardPresent()) {
-                return;
-        }
-        if (!mfrc522.PICC_ReadCardSerial()) {
-                return;
-        }
-        data = mfrc522.uid.uidByte, mfrc522.uid.size;
-        a = String(data[0], HEX);
-        b = String(data[1], HEX);
-        c = String(data[2], HEX);
-        d = String(data[3], HEX);
-        dataAppend = String(a) + String(c) + String(c) + String(d);
-        writeString(" "+dataAppend);
-        recvState = true;
-        delay(500);
-}
-
-void setup() {
-        // put your setup code here, to run once:
-        SPI.begin();
-        mfrc522.PCD_Init();
-        Serial.begin(115200);
-        lcd.begin(16, 4);
-        pinMode(RELAY0, OUTPUT);
-        pinMode(greenLedPin, OUTPUT);
-        pinMode(redLedPin, OUTPUT);
-        pinMode(BUZZER, OUTPUT);
-        Serial.write(" <Arduino is ready>");
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("  RFID RIM LOCK ");
-        lcd.setCursor(0, 1);
-        lcd.print("   PLEASE INSERT   ");
-        lcd.setCursor(4, 2);
-        lcd.print("     YOUR CARD     ");
-        digitalWrite(greenLedPin, LOW);
-        digitalWrite(RELAY0, LOW);
-        digitalWrite(redLedPin, LOW);
-        
-         
-}
-
-void loop() {
-        // put your main code here, to run repeatedly:  
-  initialTime = millis();     
-  rfidData();
-  while (Serial.available() > 0 ) {  
-    recvWithStartEndMarker();
-    dataResponse();
-    if (recvString == "GRANTED") {
-        initialTime = millis();
-        digitalWrite(greenLedPin, HIGH);
-        digitalWrite(RELAY0, HIGH);
-        lcd.setCursor(0, 1);
-        lcd.print("CARD NO: " + dataAppend);
-        lcd.setCursor(4, 2);
-        lcd.print("ACCESS GRANTED ");
-        delay(1000);
-        digitalWrite(RELAY0, LOW);
-        delay(1000);
-        digitalWrite(greenLedPin, LOW);
-     }
-    else if (recvString == "DENIED") {
-      lcd.setCursor(0, 1);
-      lcd.print("CARD NO: " + dataAppend);
-      lcd.setCursor(4, 2);
-      lcd.print("ACCESS DENIED  ");
-      for (int j = 0; j < 5; j++) {
-        digitalWrite(redLedPin, HIGH);
-        digitalWrite(BUZZER, HIGH);
-        delay(500);
-        digitalWrite(redLedPin, LOW);
-        digitalWrite(BUZZER, LOW);
-        delay(500);
-        }
-      }
-     }
-    if ((millis()-initialTime)>finalTime) {
-          lcd.setCursor(0, 1);
-          lcd.print("   PLEASE INSERT   ");
-          lcd.setCursor(4, 2);
-          lcd.print("     YOUR CARD     ");
-    }
-   
-}
-
-
-
 
 void recvWithStartEndMarker() {
     static byte ndx = 0;
@@ -165,6 +78,166 @@ void dataResponse() {
     newData = false;
     recvInProgress = false;
 }
+
+
+void rfidData() {
+  if (!mfrc522.PICC_IsNewCardPresent()) {
+                return;
+        }
+        if (!mfrc522.PICC_ReadCardSerial()) {
+                return;
+        }
+        data = mfrc522.uid.uidByte, mfrc522.uid.size;
+        a = String(data[0], HEX);
+        b = String(data[1], HEX);
+        c = String(data[2], HEX);
+        d = String(data[3], HEX);
+        dataAppend = String(a) + String(c) + String(c) + String(d);
+        writeString(" "+dataAppend);
+        recvState = true;
+        initialTime = millis();
+        delay(500);
+}
+
+int getFingerprintID() {
+  uint8_t p = finger.getImage();
+  if (p != FINGERPRINT_OK) return -1;
+
+  p = finger.image2Tz();
+  if (p != FINGERPRINT_OK) return -1;
+
+  p = finger.fingerFastSearch();
+  if (p != FINGERPRINT_OK) return -1;
+
+  String fingerprintID = String(finger.fingerID);
+  writeString(" #" + fingerprintID);
+  initialTime = millis();
+}
+
+void Buzzer() {
+  for (int k = 0; k > 5; k++) {
+    digitalWrite(BUZZER, HIGH);
+    delay(100);
+    digitalWrite(BUZZER, LOW);
+    delay(100);
+  }
+}
+
+
+void setup() {
+        // put your setup code here, to run once:
+        SPI.begin();
+        mfrc522.PCD_Init();
+        Serial.begin(115200);
+        finger.begin(57600);
+        lcd.begin(16, 4);
+        pinMode(RELAY0, OUTPUT);
+        pinMode(greenLedPin, OUTPUT);
+        pinMode(redLedPin, OUTPUT);
+        pinMode(BUZZER, OUTPUT);
+        Serial.write(" <Arduino is ready>");
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("  RFID RIM LOCK ");
+        lcd.setCursor(0, 1);
+        lcd.print("   PLEASE INSERT   ");
+        lcd.setCursor(4, 2);
+        lcd.print("     YOUR CARD     ");
+        digitalWrite(greenLedPin, LOW);
+        digitalWrite(RELAY0, LOW);
+        digitalWrite(redLedPin, LOW);
+        initialTime = millis();
+         
+}
+
+void loop() {
+        // put your main code here, to run repeatedly: 
+  if ((millis()-initialTime)>finalTime) {
+          lcd.setCursor(0, 1);
+          lcd.print("   PLEASE INSERT   ");
+          lcd.setCursor(4, 2);
+          lcd.print("     YOUR CARD     ");
+          initialTime = millis();
+    }
+  else {    
+   rfidData();
+  while (Serial.available() > 0) {  
+    recvWithStartEndMarker();
+    dataResponse();
+    if (recvString == "ID") {
+      recvState = true;
+      lcd.setCursor(0, 1);
+      lcd.print("   PLEASE PLACE   ");
+      lcd.setCursor(4, 2);
+      lcd.print("    YOUR FINGER    ");
+    }
+    else if (recvString == "DENIED") {
+      lcd.setCursor(0, 1);
+      lcd.print("CARD NO: " + dataAppend);
+      lcd.setCursor(4, 2);
+      lcd.print("ACCESS DENIED  ");
+      for (int j = 0; j < 5; j++) {
+        digitalWrite(redLedPin, HIGH);
+        digitalWrite(BUZZER, HIGH);
+        delay(500);
+        digitalWrite(redLedPin, LOW);
+        digitalWrite(BUZZER, LOW);
+        delay(500);
+        }
+    }
+    while (recvState == true) {
+      getFingerprintID();
+      recvWithStartEndMarker();
+      dataResponse();
+      if (recvString == "GRANTED") {
+        initialTime = millis();
+        digitalWrite(greenLedPin, HIGH);
+        digitalWrite(RELAY0, HIGH);
+        lcd.setCursor(0, 1);
+        lcd.print("CARD NO: " + dataAppend);
+        lcd.setCursor(4, 2);
+        lcd.print("ACCESS GRANTED ");
+        delay(1000);
+        digitalWrite(RELAY0, LOW);
+        delay(1000);
+        digitalWrite(greenLedPin, LOW);
+        recvState = false;
+     }
+    else if (recvString == "DENIED") {
+      lcd.setCursor(0, 1);
+      lcd.print("CARD NO: " + dataAppend);
+      lcd.setCursor(4, 2);
+      lcd.print("ACCESS DENIED  ");
+      for (int j = 0; j < 5; j++) {
+        digitalWrite(redLedPin, HIGH);
+        digitalWrite(BUZZER, HIGH);
+        delay(500);
+        digitalWrite(redLedPin, LOW);
+        digitalWrite(BUZZER, LOW);
+        delay(500);
+        }
+       recvState = false;
+      }
+     else if ((millis() -initialTime)>finalTime){
+      writeString(" break");
+      recvState = false;
+       lcd.setCursor(0, 1);
+       lcd.print("   PLEASE INSERT   ");
+       lcd.setCursor(4, 2);
+       lcd.print("     YOUR CARD     ");
+      initialTime = millis();
+     }
+     
+    }
+   }
+  }
+   
+}
+
+
+
+
+
 
 
 
