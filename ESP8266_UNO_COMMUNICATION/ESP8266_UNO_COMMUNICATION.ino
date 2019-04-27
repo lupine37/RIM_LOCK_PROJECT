@@ -8,6 +8,7 @@
 #include <ESP8266WiFi.h>
 
 #define SendKey 0  //Button to send data Flash BTN on NodeMCU
+int BlueLedPin = 2;
 
 int port = 8888;  //Port number
 WiFiServer server(port);
@@ -21,6 +22,7 @@ int count=0;
 void setup() 
 {
   Serial.begin(115200);
+  pinMode(BlueLedPin, OUTPUT);
   pinMode(SendKey,INPUT_PULLUP);  //Btn to send data
   Serial.println();
 
@@ -42,6 +44,7 @@ void setup()
   Serial.print("<IP address: ");
   Serial.print(WiFi.localIP()); 
   server.begin();
+  digitalWrite(BlueLedPin, LOW);
   
 }
 
@@ -52,7 +55,7 @@ void loop()
   if (client) {
     if(client.connected())
     {
-      Serial.println("<Client Connected>");
+      digitalWrite(BlueLedPin, HIGH);
     }
     
     while(client.connected()){      
@@ -67,6 +70,6 @@ void loop()
       }
     }
     client.stop();
-    Serial.println("<Client disconnected>");    
+    digitalWrite(BlueLedPin, LOW);    
   }
 }
