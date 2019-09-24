@@ -7,7 +7,7 @@ String data;
 boolean connectState = false;
 
 const int port = 8888;  //Port number
-const IPAddress server(192, 168, 1, 141);
+const IPAddress server(192, 168, 1, 170);
 
 //Server connect to WiFi Network
 const char *ssid = "MW40VD_19E7";  //Enter your wifi SSID
@@ -50,7 +50,7 @@ void loop() {
     delay(500);
     return;
   }
-   while(client.connected()){      
+   while(client.connected()){     
       while(client.available()>0){
         // read data from the connected client
         Serial.write(client.read()); 
@@ -66,4 +66,3 @@ void loop() {
     digitalWrite(ledPin, LOW); 
   
 }
-

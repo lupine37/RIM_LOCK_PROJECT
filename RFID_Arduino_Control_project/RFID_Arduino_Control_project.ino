@@ -1,6 +1,7 @@
 
 #include <SPI.h>
 #include <MFRC522.h>
+#include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_Fingerprint.h>
 #include <SoftwareSerial.h>
@@ -13,7 +14,7 @@ int greenLedPin = 5;
 int redLedPin = 6;
 int doorSensor = 4;
 MFRC522 mfrc522(SS_PIN, RST_PIN);
-LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+LiquidCrystal_I2C lcd(0x3F, 20, 4);
 SoftwareSerial mySerial(2, 3);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 
@@ -98,7 +99,6 @@ void rfidData() {
         d = String(data[3], HEX);
         dataAppend = String(a) + String(c) + String(c) + String(d);
         writeString(" "+dataAppend);
-        recvState = true;
         initialTime = millis();
         delay(500);
 }
@@ -159,75 +159,11 @@ uint8_t getFingerprintEnroll() {
                 p = finger.getImage();
         }
         Serial.print(" ID "); Serial.println(id);
-        p = -1;
-        Serial.println(" Place same finger again");
-        while (p != FINGERPRINT_OK) {
-                p = finger.getImage();
-                switch (p) {
-                case FINGERPRINT_OK:
-                        Serial.println(" Image taken");
-                        break;
-                case FINGERPRINT_NOFINGER:
-                        Serial.print(" .");
-                        break;
-                case FINGERPRINT_PACKETRECIEVEERR:
-                        Serial.println(" Communication error");
-                        break;
-                case FINGERPRINT_IMAGEFAIL:
-                        Serial.println(" Imaging error");
-                        break;
-                default:
-                        Serial.println(" Unknown error");
-                        break;
-                }
-        }
-
-        // OK success!
-
-        p = finger.image2Tz(2);
-        switch (p) {
-        case FINGERPRINT_OK:
-                Serial.println(" Image converted");
-                break;
-        case FINGERPRINT_IMAGEMESS:
-                Serial.println(" Image too messy");
-                return p;
-        case FINGERPRINT_PACKETRECIEVEERR:
-                Serial.println(" Communication error");
-                return p;
-        case FINGERPRINT_FEATUREFAIL:
-                Serial.println(" Could not find fingerprint features");
-                return p;
-        case FINGERPRINT_INVALIDIMAGE:
-                Serial.println(" Could not find fingerprint features");
-                return p;
-        default:
-                Serial.println(" Unknown error");
-                return p;
-        }
-
-        // OK converted!
-        Serial.print(" Creating model for #");  Serial.println(id);
-
-        p = finger.createModel();
-        if (p == FINGERPRINT_OK) {
-                Serial.println(" Prints matched!");
-        } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
-                Serial.println(" Communication error");
-                return p;
-        } else if (p == FINGERPRINT_ENROLLMISMATCH) {
-                writeString(" no_match");
-                initialTime = millis();
-                return p;
-        } else {
-                Serial.println(" Unknown error");
-                return p;
-        }
-
-        Serial.print(" ID "); Serial.println(id);
         p = finger.storeModel(id);
         if (p == FINGERPRINT_OK) {
-                writeString(" Stored!");
+                delay(1000);
+                writeString(" Stored");
+                delay(1000);
         } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
                 Serial.println(" Communication error");
                 return p;
@@ -275,7 +211,9 @@ void setup() {
         mfrc522.PCD_Init();
         Serial.begin(115200);
         finger.begin(57600);
-        lcd.begin(16, 4);
+        lcd.init();
+        lcd.init();
+        lcd.backlight();
         pinMode(RELAY0, OUTPUT);
         pinMode(greenLedPin, OUTPUT);
         pinMode(redLedPin, OUTPUT);
@@ -287,7 +225,7 @@ void setup() {
         lcd.print("   RFID RIM LOCK  ");
         lcd.setCursor(0, 1);
         lcd.print("   PLEASE INSERT   ");
-        lcd.setCursor(4, 2);
+        lcd.setCursor(0, 2);
         lcd.print("     YOUR CARD     ");
         digitalWrite(greenLedPin, LOW);
         digitalWrite(RELAY0, LOW);
@@ -302,17 +240,18 @@ void loop() {
         if (doorSensorState == 1) {
                 lcd.setCursor(0, 1);
                 lcd.print("    PLEASE CLOSE    ");
-                lcd.setCursor(4, 2);
+                lcd.setCursor(0, 2);
                 lcd.print("      THE DOOR      ");
                 digitalWrite(greenLedPin, HIGH);
                 delay(200);
                 digitalWrite(greenLedPin, LOW);
                 delay(200);
+                return;
         }
         else if ((millis()-initialTime)>finalTime) {
                 lcd.setCursor(0, 1);
                 lcd.print("   PLEASE INSERT   ");
-                lcd.setCursor(4, 2);
+                lcd.setCursor(0, 2);
                 lcd.print("     YOUR CARD     ");
                 initialTime = millis();
         }
@@ -334,13 +273,13 @@ void loop() {
                                 recvState = true;
                                 lcd.setCursor(0, 1);
                                 lcd.print("   PLEASE PLACE   ");
-                                lcd.setCursor(4, 2);
+                                lcd.setCursor(0, 2);
                                 lcd.print("    YOUR FINGER    ");
                         }
                         else if (recvString == "DENIED") {
                                 lcd.setCursor(0, 1);
                                 lcd.print("CARD NO: " + dataAppend);
-                                lcd.setCursor(4, 2);
+                                lcd.setCursor(0, 2);
                                 lcd.print("ACCESS DENIED  ");
                                 for (int j = 0; j < 5; j++) {
                                         digitalWrite(redLedPin, HIGH);
@@ -361,7 +300,7 @@ void loop() {
                                         digitalWrite(RELAY0, HIGH);
                                         lcd.setCursor(0, 1);
                                         lcd.print("CARD NO: " + dataAppend);
-                                        lcd.setCursor(4, 2);
+                                        lcd.setCursor(0, 2);
                                         lcd.print("ACCESS GRANTED ");
                                         delay(1000);
                                         digitalWrite(RELAY0, LOW);
@@ -372,7 +311,7 @@ void loop() {
                                 else if (recvString == "DENIED") {
                                         lcd.setCursor(0, 1);
                                         lcd.print("CARD NO: " + dataAppend);
-                                        lcd.setCursor(4, 2);
+                                        lcd.setCursor(0, 2);
                                         lcd.print("ACCESS DENIED  ");
                                         for (int j = 0; j < 5; j++) {
                                                 digitalWrite(redLedPin, HIGH);
@@ -389,7 +328,7 @@ void loop() {
                                         recvState = false;
                                         lcd.setCursor(0, 1);
                                         lcd.print("   PLEASE INSERT   ");
-                                        lcd.setCursor(4, 2);
+                                        lcd.setCursor(0, 2);
                                         lcd.print("     YOUR CARD     ");
                                         initialTime = millis();
                                 }
