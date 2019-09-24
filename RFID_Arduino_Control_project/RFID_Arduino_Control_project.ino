@@ -97,7 +97,7 @@ void rfidData() {
         b = String(data[1], HEX);
         c = String(data[2], HEX);
         d = String(data[3], HEX);
-        dataAppend = String(a) + String(c) + String(c) + String(d);
+        dataAppend = String(a) + String(b) + String(c) + String(d);
         writeString(" "+dataAppend);
         initialTime = millis();
         delay(500);
